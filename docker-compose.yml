@@ -1,0 +1,56 @@
+version: '3.1'
+
+services:
+  mongo:
+    container_name: mongo
+    image: mongo:4.2
+    volumes:
+      - ./.data:/data/db
+    ports:
+      - 27017:27017
+
+  rabbitmq: 
+    image: rabbitmq:3.12.12-management-alpine
+    container_name: rabbitmq
+    ports:
+      - 15672:15672
+      - 5672:5672
+    environment: 
+      RABBITMQ_DEFAULT_USER: ${AMQP_USER}
+      RABBITMQ_DEFAULT_PASS: ${AMQP_PASSWORD}
+
+  user-service:
+    container_name: user-service
+    env_file: ./.env
+    build:
+      context: ./user-service
+      dockerfile: Dockerfile.dev
+    ports:
+      - 3000:3000
+    volumes:
+      - ./user-service/src/:/user-service/src/
+    command: npm run start:dev
+    restart: unless-stopped
+    healthcheck:
+      test: curl --fail http://0.0.0.0:$$PORT/api/v1/health || exit 1
+      interval: 60s
+      retries: 5
+      start_period: 20s
+      timeout: 10s
+
+  notification-service:
+    container_name: notification-service
+    env_file: ./.env
+    build:
+      context: ./notification-service
+      dockerfile: Dockerfile.dev
+    volumes:
+      - ./notification-service/src/:/user-service/src/
+    command: npm run start:dev
+    restart: unless-stopped
+    healthcheck:
+      test: curl --fail http://0.0.0.0:$$PORT/api/v1/health || exit 1
+      interval: 60s
+      retries: 5
+      start_period: 20s
+      timeout: 10s
